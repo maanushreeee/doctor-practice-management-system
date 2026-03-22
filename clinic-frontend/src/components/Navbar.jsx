@@ -66,7 +66,7 @@ export default function Navbar() {
         sx={{ color: '#ffffff', cursor: 'pointer', fontWeight: 700, fontSize: '1.75rem' }}
         onClick={() => handleNavigation('/')}
       >
-        Clinic
+        WellBook
       </Typography>
 
       {/* nav links */}

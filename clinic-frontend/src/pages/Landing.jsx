@@ -1,226 +1,397 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/joy/Box';
 import Typography from '@mui/joy/Typography';
-import Input from '@mui/joy/Input';
-import Select from '@mui/joy/Select';
-import Option from '@mui/joy/Option';
 import Grid from '@mui/joy/Grid';
 import CircularProgress from '@mui/joy/CircularProgress';
 import Button from '@mui/joy/Button';
-import Card from '@mui/joy/Card';
-import CardContent from '@mui/joy/CardContent';
+import Chip from '@mui/joy/Chip';
+import Divider from '@mui/joy/Divider';
 import DoctorCard from '../components/DoctorCard';
 import { getDoctors } from '../api/public';
-import { SPECIALIZATIONS, SERVICES } from '../constants';
+import { SPECIALIZATIONS } from '../constants';
+import HeroIllustration from '../assets/hero.png';
 
+// ─── Scroll Reveal Hook ───────────────────────────────────────────────────────
+function useScrollReveal(threshold = 0.15) {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) setVisible(true); },
+      { threshold }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [threshold]);
+
+  return { ref, visible };
+}
+
+// ─── Step Card ────────────────────────────────────────────────────────────────
+function StepCard({ step, title, desc, index, visible }) {
+  return (
+    <Box
+      sx={{
+        textAlign: 'center',
+        p: 3,
+        borderRadius: '12px',
+        backgroundColor: '#ffffff',
+        boxShadow: '0 2px 12px rgba(43,45,66,0.08)',
+        cursor: 'pointer',
+        transition: [
+          `opacity 0.5s ease ${index * 0.15}s`,
+          `transform 0.5s ease ${index * 0.15}s`,
+          'background-color 0.2s ease',
+        ].join(', '),
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(30px)',
+        '&:hover': {
+          backgroundColor: '#8d99ae',
+          '& .step-number': {
+            backgroundColor: '#ffffff',
+            color: '#2b2d42',
+          },
+          '& .step-title': { color: '#ffffff' },
+          '& .step-desc': { color: '#edf2f4' },
+        },
+      }}
+    >
+      <Box
+        className="step-number"
+        sx={{
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          backgroundColor: '#edf2f4',
+          color: '#2b2d42',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          mx: 'auto',
+          mb: 2,
+          fontSize: '1.25rem',
+          fontWeight: 700,
+          transition: 'background-color 0.2s ease, color 0.2s ease',
+        }}
+      >
+        {step}
+      </Box>
+      <Typography
+        className="step-title"
+        level="h4"
+        sx={{ color: '#2b2d42', mb: 0.5, transition: 'color 0.2s ease' }}
+      >
+        {title}
+      </Typography>
+      <Typography
+        className="step-desc"
+        level="body-sm"
+        sx={{ color: '#8d99ae', transition: 'color 0.2s ease' }}
+      >
+        {desc}
+      </Typography>
+    </Box>
+  );
+}
+
+// ─── Stat Item ────────────────────────────────────────────────────────────────
+function StatItem({ value, label, index, visible }) {
+  return (
+    <Box
+      sx={{
+        textAlign: 'center',
+        transition: `opacity 0.5s ease ${index * 0.1}s, transform 0.5s ease ${index * 0.1}s`,
+        opacity: visible ? 1 : 0,
+        transform: visible ? 'translateY(0)' : 'translateY(20px)',
+      }}
+    >
+      <Typography level="h2" sx={{ color: '#2b2d42', fontWeight: 700 }}>
+        {value}
+      </Typography>
+      <Typography level="body-sm" sx={{ color: '#8d99ae' }}>
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+const STEPS = [
+  { step: '1', title: 'Find a Doctor', desc: 'Browse by specialization or service' },
+  { step: '2', title: 'Book a Slot', desc: 'Pick a time that works for you' },
+  { step: '3', title: 'Get Confirmed', desc: 'Doctor reviews and approves' },
+  { step: '4', title: 'Consult', desc: 'Visit the clinic at your slot time' },
+];
+
+// ─── Landing Page ─────────────────────────────────────────────────────────────
 export default function Landing() {
   const [doctors, setDoctors] = useState([]);
+  const [allDoctors, setAllDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [specialization, setSpecialization] = useState('');
-  const [service, setService] = useState('');
+  const [activeSpecialization, setActiveSpecialization] = useState('');
   const navigate = useNavigate();
+
+  const doctorsRef = useRef(null);
+  const statsReveal = useScrollReveal();
+  const howItWorksReveal = useScrollReveal();
+  const doctorCtaReveal = useScrollReveal();
+
+  useEffect(() => {
+    fetchDoctors();
+  }, []);
 
   const fetchDoctors = async (filters = {}) => {
     setLoading(true);
     try {
-      console.log('[Landing] Fetching doctors with filters:', filters);
       const res = await getDoctors(filters);
       setDoctors(res.data);
-      console.log(`[Landing] Fetched ${res.data.length} doctors`);
+      if (!filters.specialization) setAllDoctors(res.data);
     } catch (err) {
-      console.error('[Landing] Error fetching doctors:', err.message);
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    console.log('[Landing] Component mounted, loading doctors');
-    fetchDoctors();
-  }, []);
-
-  const handleFilter = () => {
-    const filters = {};
-    if (specialization) filters.specialization = specialization;
-    if (service) filters.service = service;
-    console.log('[Landing] Applying filters');
-    fetchDoctors(filters);
+  const handleSpecializationClick = (spec) => {
+    if (activeSpecialization === spec) {
+      setActiveSpecialization('');
+      setDoctors(allDoctors);
+    } else {
+      setActiveSpecialization(spec);
+      fetchDoctors({ specialization: spec });
+    }
+    doctorsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
-  const handleClear = () => {
-    console.log('[Landing] Clearing filters');
-    setSpecialization('');
-    setService('');
-    fetchDoctors();
+  const handleClearFilter = () => {
+    setActiveSpecialization('');
+    setDoctors(allDoctors);
   };
 
-  const handleBrowseAll = () => {
-    console.log('[Landing] Browsing all doctors');
-    navigate('/patient/browse');
-  };
+  const stats = [
+    { value: `${allDoctors.length}+`, label: 'Verified Doctors' },
+    { value: `${SPECIALIZATIONS.length}+`, label: 'Specializations' },
+    { value: '500+', label: 'Patients Served' },
+    { value: '24/7', label: 'Available' },
+  ];
 
   return (
-    <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
+    <Box sx={{ minHeight: '100vh', backgroundColor: '#edf2f4' }}>
 
-      {/* HERO SECTION WITH SEARCH */}
+      {/* ── HERO ── */}
       <Box
         sx={{
           backgroundColor: '#2b2d42',
-          py: 6,
-          px: 4,
-          textAlign: 'center',
+          px: { xs: 3, md: 8 },
+          py: { xs: 6, md: 8 },
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 4,
+          flexWrap: 'wrap',
         }}
       >
-        <Typography level="h1" sx={{ color: '#ffffff', mb: 1, fontSize: '2.5rem' }}>
-          Find & Book Appointments with Top Doctors
-        </Typography>
-        <Typography level="body-md" sx={{ color: '#8d99ae', mb: 4 }}>
-          Search by specialization, book instantly, and consult online or in-person
-        </Typography>
+        {/* left — text + CTAs */}
+        <Box sx={{ flex: 1, minWidth: 280, maxWidth: 560 }}>
+          <Typography
+            level="h1"
+            sx={{
+              color: '#ffffff',
+              fontSize: { xs: '2rem', md: '2.75rem' },
+              lineHeight: 1.2,
+              mb: 2,
+            }}
+          >
+            Your Health,<br />
+            <Box component="span" sx={{ color: '#8d99ae' }}>
+              Our Priority
+            </Box>
+          </Typography>
+          <Typography level="body-md" sx={{ color: '#b3c0cc', mb: 4, maxWidth: 440 }}>
+            Find verified doctors, book appointments instantly and manage
+            your healthcare all in one place.
+          </Typography>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+            <Button
+              size="lg"
+              sx={{
+                backgroundColor: '#ffffff',
+                color: '#2b2d42',
+                fontWeight: 700,
+                '&:hover': { backgroundColor: '#edf2f4' },
+              }}
+              onClick={() => navigate('/register/patient')}
+            >
+              Book Appointment
+            </Button>
+            <Button
+              size="lg"
+              variant="outlined"
+              sx={{
+                borderColor: '#8d99ae',
+                color: '#ffffff',
+                '&:hover': { backgroundColor: '#3d3f57' },
+              }}
+              onClick={() => navigate('/signup/doctor')}
+            >
+              Join as Doctor
+            </Button>
+          </Box>
+        </Box>
 
-        {/* Search Bar */}
+        {/* right — hero illustration */}
         <Box
           sx={{
-            display: 'flex',
-            gap: 2,
-            maxWidth: 600,
-            mx: 'auto',
-            flexWrap: 'wrap',
+            flex: 1,
+            minWidth: 240,
+            maxWidth: 520,
+            display: { xs: 'none', md: 'flex' },
             justifyContent: 'center',
+            alignItems: 'center',
           }}
         >
-          <Select
-            placeholder="Select Specialization"
-            value={specialization}
-            onChange={(_, val) => setSpecialization(val)}
-            sx={{ minWidth: 200, backgroundColor: '#ffffff' }}
-          >
-            {SPECIALIZATIONS.map((s) => (
-              <Option key={s} value={s}>
-                {s.replace(/_/g, ' ')}
-              </Option>
-            ))}
-          </Select>
-
-          <Select
-            placeholder="Select Service"
-            value={service}
-            onChange={(_, val) => setService(val)}
-            sx={{ minWidth: 200, backgroundColor: '#ffffff' }}
-          >
-            {SERVICES.map((s) => (
-              <Option key={s} value={s}>
-                {s.replace(/_/g, ' ')}
-              </Option>
-            ))}
-          </Select>
-
-          <Button
-            size="lg"
-            sx={{ backgroundColor: '#8d99ae', '&:hover': { backgroundColor: '#6d7d8e' } }}
-            onClick={handleFilter}
-          >
-            Search
-          </Button>
+          <img
+            src={HeroIllustration}
+            alt="Healthcare illustration"
+            style={{
+              width: '100%',
+              maxWidth: 580,
+              objectFit: 'contain',
+            }}
+          />
         </Box>
       </Box>
 
-      {/* QUICK ACTION CARDS */}
-      <Box sx={{ px: 4, py: 6, backgroundColor: '#ffffff' }}>
-        <Grid container spacing={2} sx={{ mb: 0 }}>
-          {[
-            { title: 'Instant Consultation', desc: 'Video call with doctors now' },
-            { title: 'Book Appointment', desc: 'Schedule at your convenience' },
-            { title: 'Verified Doctors', desc: 'All doctors are verified experts' },
-            { title: '24/7 Available', desc: 'Book anytime, anywhere' },
-          ].map((item, idx) => (
-            <Grid key={idx} xs={12} sm={6} md={3}>
-              <Card
-                sx={{
-                  backgroundColor: '#f5f5f5',
-                  border: 'none',
-                  boxShadow: 'none',
-                  textAlign: 'center',
-                  p: 2,
-                }}
-              >
-                <CardContent>
-                  <Typography level="h4" sx={{ color: '#2b2d42', mb: 1 }}>
-                    {item.title}
-                  </Typography>
-                  <Typography level="body-sm" sx={{ color: '#8d99ae' }}>
-                    {item.desc}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
+      {/* ── STATS BAR ── */}
+      <Box
+        ref={statsReveal.ref}
+        sx={{
+          backgroundColor: '#ffffff',
+          px: 4,
+          py: 3,
+          display: 'flex',
+          justifyContent: 'space-around',
+          flexWrap: 'wrap',
+          gap: 2,
+          boxShadow: '0 2px 8px rgba(43,45,66,0.06)',
+        }}
+      >
+        {stats.map((stat, i) => (
+          <StatItem key={i} {...stat} index={i} visible={statsReveal.visible} />
+        ))}
       </Box>
 
-      {/* HOW IT WORKS */}
-      <Box sx={{ px: 4, py: 6, backgroundColor: '#edf2f4' }}>
-        <Typography level="h2" sx={{ textAlign: 'center', mb: 4, color: '#2b2d42' }}>
+      {/* ── SPECIALIZATIONS GRID ── */}
+      <Box sx={{ px: 4, py: 6 }}>
+        <Typography level="h2" sx={{ textAlign: 'center', mb: 1, color: '#2b2d42' }}>
+          Browse by Specialization
+        </Typography>
+        <Typography level="body-sm" sx={{ textAlign: 'center', color: '#8d99ae', mb: 4 }}>
+          Click a specialization to filter doctors
+        </Typography>
+        <Box
+          sx={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 1.5,
+            justifyContent: 'center',
+            maxWidth: 800,
+            mx: 'auto',
+          }}
+        >
+          {SPECIALIZATIONS.map((spec) => (
+            <Chip
+              key={spec}
+              size="lg"
+              variant={activeSpecialization === spec ? 'solid' : 'outlined'}
+              onClick={() => handleSpecializationClick(spec)}
+              sx={{
+                cursor: 'pointer',
+                textTransform: 'capitalize',
+                backgroundColor: activeSpecialization === spec ? '#2b2d42' : '#ffffff',
+                color: activeSpecialization === spec ? '#ffffff' : '#2b2d42',
+                borderColor: '#8d99ae',
+                fontWeight: activeSpecialization === spec ? 600 : 400,
+                transition: 'background-color 0.2s ease',
+                '&:hover': {
+                  backgroundColor: activeSpecialization === spec ? '#3d3f57' : 'var(--solidActiveBg)',
+                },
+              }}
+            >
+              {spec.replace(/_/g, ' ')}
+            </Chip>
+          ))}
+        </Box>
+      </Box>
+
+      {/* ── HOW IT WORKS ── */}
+      <Box
+        ref={howItWorksReveal.ref}
+        sx={{ px: 4, py: 6, backgroundColor: '#ffffff' }}
+      >
+        <Typography level="h2" sx={{ textAlign: 'center', mb: 1, color: '#2b2d42' }}>
           How It Works
         </Typography>
-        <Grid container spacing={3} sx={{ maxWidth: 900, mx: 'auto' }}>
-          {[
-            { step: '1', title: 'Search Doctors', desc: 'Find the right specialist for your needs' },
-            { step: '2', title: 'Check Availability', desc: 'View their schedules and book slots' },
-            { step: '3', title: 'Book Appointment', desc: 'Confirm your appointment instantly' },
-            { step: '4', title: 'Consult', desc: 'Meet online or visit the clinic' },
-          ].map((item, idx) => (
+        <Typography level="body-sm" sx={{ textAlign: 'center', color: 'var(--solidActiveBg)', mb: 4 }}>
+          Book your appointment in 4 simple steps
+        </Typography>
+        <Grid container spacing={2} sx={{ maxWidth: 900, mx: 'auto' }}>
+          {STEPS.map((item, idx) => (
             <Grid key={idx} xs={12} sm={6} md={3}>
-              <Box sx={{ textAlign: 'center' }}>
-                <Box
-                  sx={{
-                    width: 50,
-                    height: 50,
-                    backgroundColor: '#2b2d42',
-                    color: '#ffffff',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    mb: 2,
-                    mx: 'auto',
-                    fontSize: '1.5rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  {item.step}
-                </Box>
-                <Typography level="h4" sx={{ color: '#2b2d42', mb: 0.5 }}>
-                  {item.title}
-                </Typography>
-                <Typography level="body-sm" sx={{ color: '#8d99ae' }}>
-                  {item.desc}
-                </Typography>
-              </Box>
+              <StepCard {...item} index={idx} visible={howItWorksReveal.visible} />
             </Grid>
           ))}
         </Grid>
       </Box>
 
-      {/* FEATURED DOCTORS */}
-      <Box sx={{ px: 4, py: 6, backgroundColor: '#ffffff' }}>
-        <Typography level="h2" sx={{ textAlign: 'center', mb: 1, color: '#2b2d42' }}>
-          Featured Doctors
-        </Typography>
-        <Typography level="body-md" sx={{ textAlign: 'center', color: '#8d99ae', mb: 4 }}>
-          Top-rated specialists ready to help
-        </Typography>
+      {/* ── FEATURED DOCTORS ── */}
+      <Box ref={doctorsRef} sx={{ px: 4, py: 6 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+          <Box>
+            <Typography level="h2" sx={{ color: '#2b2d42' }}>
+              {activeSpecialization
+                ? `${activeSpecialization.replace(/_/g, ' ')} Doctors`
+                : 'Featured Doctors'}
+            </Typography>
+            <Typography level="body-sm" sx={{ color: '#8d99ae' }}>
+              {activeSpecialization
+                ? `Showing doctors for ${activeSpecialization.replace(/_/g, ' ')}`
+                : 'Top rated specialists on our platform'}
+            </Typography>
+          </Box>
+          {activeSpecialization && (
+            <Button
+              variant="outlined"
+              size="sm"
+              sx={{ borderColor: '#8d99ae', color: '#2b2d42' }}
+              onClick={handleClearFilter}
+            >
+              Clear Filter
+            </Button>
+          )}
+        </Box>
+
+        <Divider sx={{ mb: 3 }} />
 
         {loading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}>
             <CircularProgress sx={{ color: '#2b2d42' }} />
           </Box>
         ) : doctors.length === 0 ? (
-          <Box sx={{ textAlign: 'center', py: 4 }}>
-            <Typography level="body-md" sx={{ color: '#8d99ae' }}>
-              No doctors found
+          <Box sx={{ textAlign: 'center', py: 6 }}>
+            <Typography level="body-md" sx={{ color: '#8d99ae', mb: 2 }}>
+              No doctors found for this specialization.
             </Typography>
+            <Button
+              variant="outlined"
+              sx={{ borderColor: '#8d99ae', color: '#2b2d42' }}
+              onClick={handleClearFilter}
+            >
+              Show All Doctors
+            </Button>
           </Box>
         ) : (
           <Grid container spacing={3}>
@@ -238,7 +409,7 @@ export default function Landing() {
               size="lg"
               variant="outlined"
               sx={{ borderColor: '#2b2d42', color: '#2b2d42' }}
-              onClick={handleBrowseAll}
+              onClick={() => navigate('/patient/browse')}
             >
               Browse All Doctors
             </Button>
@@ -246,29 +417,80 @@ export default function Landing() {
         )}
       </Box>
 
-      {/* CTA SECTION */}
+      {/* ── DOCTOR CTA ── */}
       <Box
+        ref={doctorCtaReveal.ref}
         sx={{
           backgroundColor: '#2b2d42',
-          py: 6,
           px: 4,
-          textAlign: 'center',
+          py: 6,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 3,
+          transition: 'opacity 0.6s ease, transform 0.6s ease',
+          opacity: doctorCtaReveal.visible ? 1 : 0,
+          transform: doctorCtaReveal.visible ? 'translateY(0)' : 'translateY(30px)',
         }}
       >
-        <Typography level="h2" sx={{ color: '#ffffff', mb: 2 }}>
-          Ready to Book Your Appointment?
-        </Typography>
-        <Typography level="body-md" sx={{ color: '#8d99ae', mb: 4 }}>
-          Join thousands of patients who trust us for their healthcare
-        </Typography>
+        <Box>
+          <Typography level="h2" sx={{ color: '#ffffff', mb: 1 }}>
+            Are you a Doctor?
+          </Typography>
+          <Typography level="body-md" sx={{ color: '#8d99ae', maxWidth: 480 }}>
+            Join our platform to manage your appointments, slots and patient
+            bookings all in one place.
+          </Typography>
+        </Box>
         <Button
           size="lg"
-          sx={{ backgroundColor: '#8d99ae', '&:hover': { backgroundColor: '#6d7d8e' } }}
-          onClick={() => navigate('/register/patient')}
+          sx={{
+            backgroundColor: '#ffffff',
+            color: '#2b2d42',
+            fontWeight: 700,
+            '&:hover': { backgroundColor: '#edf2f4' },
+          }}
+          onClick={() => navigate('/signup/doctor')}
         >
-          Sign Up Now
+          Join as a Doctor
         </Button>
       </Box>
+
+      {/* ── FOOTER ── */}
+      <Box
+        sx={{
+          backgroundColor: '#1e202e',
+          px: 4,
+          py: 3,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 2,
+        }}
+      >
+        <Typography level="body-sm" sx={{ color: '#8d99ae' }}>
+          © 2026 Clinic. All rights reserved.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 3 }}>
+          {[
+            { label: 'Patient Login', path: '/login/patient' },
+            { label: 'Doctor Login', path: '/login/doctor' },
+            { label: 'Join as Doctor', path: '/signup/doctor' },
+          ].map(({ label, path }) => (
+            <Typography
+              key={path}
+              level="body-sm"
+              sx={{ color: '#8d99ae', cursor: 'pointer', '&:hover': { color: '#ffffff' } }}
+              onClick={() => navigate(path)}
+            >
+              {label}
+            </Typography>
+          ))}
+        </Box>
+      </Box>
+
     </Box>
   );
 }

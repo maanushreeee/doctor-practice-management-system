@@ -14,7 +14,7 @@ const statusColors = {
   cancelled: { bg: '#f5f5f5', color: '#8d99ae' },
 };
 
-export default function BookingCard({ booking, onApprove, onReject, onCancel, role }) {
+export default function BookingCard({ booking, onApprove, onReject, onCancel, onOpenRecord, role }) {
   const [loading, setLoading] = useState(false);
 
   const formatDateTime = (dt) =>
@@ -82,6 +82,20 @@ export default function BookingCard({ booking, onApprove, onReject, onCancel, ro
               }}
             >
               Reject
+            </Button>
+          </Box>
+        )}
+
+        {role === 'doctor' && booking.status === 'approved' && (
+          <Box sx={{ mt: 2 }}>
+            <Button
+              size="sm"
+              fullWidth
+              variant="soft"
+              sx={{ backgroundColor: '#edf2f4', color: '#2b2d42' }}
+              onClick={() => onOpenRecord?.(booking)}
+            >
+              Patient Record
             </Button>
           </Box>
         )}

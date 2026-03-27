@@ -7,12 +7,15 @@ import Option from '@mui/joy/Option';
 import Grid from '@mui/joy/Grid';
 import { getDoctorBookings, approveBooking, rejectBooking } from '../../api/doctor';
 import BookingCard from '../../components/BookingCard';
+import PatientRecordDialog from '../../components/PatientRecordDialog';
 
 export default function DoctorBookings() {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
   const [actionLoading, setActionLoading] = useState(null); // booking id currently being actioned
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [recordDialogOpen, setRecordDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchBookings();
@@ -63,6 +66,11 @@ export default function DoctorBookings() {
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleOpenRecord = (booking) => {
+    setSelectedBooking(booking);
+    setRecordDialogOpen(true);
   };
 
   const filtered = filter === 'all'
@@ -127,12 +135,19 @@ export default function DoctorBookings() {
                 role="doctor"
                 onApprove={handleApprove}
                 onReject={handleReject}
+                onOpenRecord={handleOpenRecord}
                 loading={actionLoading === booking.id}
               />
             </Grid>
           ))}
         </Grid>
       )}
+
+      <PatientRecordDialog
+        open={recordDialogOpen}
+        booking={selectedBooking}
+        onClose={() => setRecordDialogOpen(false)}
+      />
     </Box>
   );
 }

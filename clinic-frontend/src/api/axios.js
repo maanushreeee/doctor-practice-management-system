@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const apiBaseUrl = ('http://localhost:8000');
+
 const api = axios.create({
-  baseURL: 'https://doctor-practice-management-system-r5ji.onrender.com',
+  baseURL: apiBaseUrl,
   headers: {
     'Content-Type': 'application/json',
   },

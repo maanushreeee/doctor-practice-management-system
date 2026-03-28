@@ -17,6 +17,26 @@ import { createBooking, lockSlot, unlockSlot } from '../../api/patient';
 import { useAuth } from '../../context/AuthContext';
 import SlotCard from '../../components/SlotCard';
 
+function getDayKey(date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).toISOString();
+}
+
+function getDayLabel(date) {
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const targetStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const diffDays = Math.round((targetStart - todayStart) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Tomorrow';
+
+  return targetStart.toLocaleDateString('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+}
+
 export default function DoctorDetail() {
   const { doctorId } = useParams();
   const navigate = useNavigate();
@@ -29,6 +49,7 @@ export default function DoctorDetail() {
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState('');
+  const [selectedDayKey, setSelectedDayKey] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -122,6 +143,34 @@ export default function DoctorDetail() {
     );
   }
 
+  const sortedSlots = [...slots].sort(
+    (a, b) => new Date(a.start_time) - new Date(b.start_time)
+  );
+
+  const groupedSlots = sortedSlots.reduce((groups, slot) => {
+    const slotDate = new Date(slot.start_time);
+    const key = getDayKey(slotDate);
+
+    if (!groups[key]) {
+      groups[key] = {
+        label: getDayLabel(slotDate),
+        dateText: slotDate.toLocaleDateString('en-IN', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        }),
+        slots: [],
+      };
+    }
+
+    groups[key].slots.push(slot);
+    return groups;
+  }, {});
+
+  const slotSections = Object.values(groupedSlots);
+  const activeDayKey = selectedDayKey || Object.keys(groupedSlots)[0] || '';
+  const activeSection = groupedSlots[activeDayKey];
+
   return (
     <Box sx={{ minHeight: '100vh', backgroundColor: '#edf2f4', px: 4, py: 4 }}>
       <Box sx={{ maxWidth: 860, mx: 'auto' }}>
@@ -208,7 +257,40 @@ export default function DoctorDetail() {
         </Card>
 
         {/* available slots */}
-        <Typography level="h2" sx={{ mb: 2 }}>Available Slots</Typography>
+        <Box
+          sx={{
+            mb: 2,
+            display: 'flex',
+            alignItems: { xs: 'flex-start', md: 'center' },
+            justifyContent: 'space-between',
+            gap: 2,
+            flexDirection: { xs: 'column', md: 'row' },
+          }}
+        >
+          <Typography level="h2">Available Slots</Typography>
+
+          {slotSections.length > 0 && (
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {Object.entries(groupedSlots).map(([dayKey, section]) => (
+                <Chip
+                  key={dayKey}
+                  size="sm"
+                  variant={dayKey === activeDayKey ? 'solid' : 'soft'}
+                  onClick={() => setSelectedDayKey(dayKey)}
+                  sx={{
+                    cursor: 'pointer',
+                    backgroundColor: dayKey === activeDayKey ? '#2b2d42' : '#ffffff',
+                    color: dayKey === activeDayKey ? '#ffffff' : '#2b2d42',
+                    border: '1px solid',
+                    borderColor: dayKey === activeDayKey ? '#2b2d42' : '#d6dde3',
+                  }}
+                >
+                  {section.label}
+                </Chip>
+              ))}
+            </Box>
+          )}
+        </Box>
 
         {slots.length === 0 ? (
           <Card variant="outlined">
@@ -219,17 +301,25 @@ export default function DoctorDetail() {
             </CardContent>
           </Card>
         ) : (
-          <Grid container spacing={2}>
-            {slots.map((slot) => (
-              <Grid key={slot.id} xs={12} sm={6} md={4}>
-                <SlotCard
-                  slot={slot}
-                  showBookButton={!slot.is_booked}
-                  onBook={handleBookClick}
-                />
-              </Grid>
-            ))}
-          </Grid>
+          <Box>
+            {activeSection && activeSection.label !== activeSection.dateText && (
+              <Typography level="body-sm" sx={{ color: '#8d99ae', textAlign: 'right', mb: 1.5 }}>
+                {activeSection.dateText}
+              </Typography>
+            )}
+
+            <Grid container spacing={2}>
+              {activeSection?.slots.map((slot) => (
+                <Grid key={slot.id} xs={12} sm={6} md={4}>
+                  <SlotCard
+                    slot={slot}
+                    showBookButton={!slot.is_booked}
+                    onBook={handleBookClick}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          </Box>
         )}
 
       </Box>

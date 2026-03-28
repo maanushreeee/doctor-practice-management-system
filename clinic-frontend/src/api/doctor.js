@@ -32,3 +32,19 @@ export const rejectBooking = (bookingId) => {
   console.log(`[Doctor API] Rejecting booking ID: ${bookingId}`);
   return api.post(`/doctor/bookings/${bookingId}/reject`);
 };
+
+// patient records
+export const getDoctorPatientRecords = (patientId) => {
+  console.log(`[Doctor API] Fetching records for patient ID: ${patientId}`);
+  return api.get(`/doctor/patients/${patientId}/records`);
+};
+
+export const createPatientRecord = (data) => {
+  console.log(`[Doctor API] Creating patient record for booking ID: ${data.booking_id}`);
+  return api.post('/doctor/records', data);
+};
+
+export const updatePatientRecord = (recordId, data) => {
+  console.log(`[Doctor API] Updating patient record ID: ${recordId}`);
+  return api.put(`/doctor/records/${recordId}`, data);
+};

@@ -9,9 +9,11 @@ from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from pathlib import Path
 from app.db.mongo import get_db
 
-load_dotenv()
+ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(ENV_PATH)
 
 # to get a string like this run:
 # openssl rand -hex 32

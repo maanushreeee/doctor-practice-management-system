@@ -4,8 +4,10 @@ import os
 import asyncio
 import pymongo
 from pymongo import AsyncMongoClient
+from pathlib import Path
 
-load_dotenv()
+ENV_PATH = Path(__file__).resolve().parents[2] / ".env"
+load_dotenv(ENV_PATH)
 
 # Get MongoDB connection URI from environment
 uri = os.getenv("MONGO_URI")
